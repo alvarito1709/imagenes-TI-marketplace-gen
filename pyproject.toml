@@ -1,0 +1,23 @@
+[project]
+name = "restaurador-fotos-marketplace"
+version = "0.1.0"
+description = "Limpia ruido y desenfoque de fotos de productos con difusión, sin ocultar defectos reales."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "gradio",
+    "diffusers",
+    "transformers",
+    "accelerate",
+    "torch",
+    "pillow",
+    "numpy",
+    "opencv-python-headless",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
