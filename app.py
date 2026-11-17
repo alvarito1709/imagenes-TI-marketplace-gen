@@ -25,7 +25,7 @@ def procesar(imagen, intensidad, progreso=gr.Progress()):
 
         mapa = honesty.mapa_de_diferencias(original, resultado)
         base_clasica = clasico.filtro_bilateral(original)
-        informe = honesty.generar_informe(comparacion, intensidad)
+        informe = honesty.generar_informe(comparacion, intensidad, honesty.porcentaje_cambiado(original, resultado))
     except NotImplementedError as error:
         raise gr.Error(f"Esta parte todavía no está implementada: {error}") from error
     except Exception as error:
