@@ -13,6 +13,12 @@ AVISO_IA = (
     "del producto."
 )
 
+AVISO_ESCENA = (
+    "ℹ️ **Qué es real y qué es inventado:** el producto es el de tu foto, píxel por píxel. "
+    "Lo único que generó una IA es el fondo. Si ves que el producto \"flota\" o le falta sombra, "
+    "es porque el fondo es nuevo: usá la foto con criterio."
+)
+
 DIFERENCIA_VISIBLE = 25  # sobre 255: por debajo, el cambio no se nota a simple vista
 ESCALA_MAPA = 64         # diferencia que se pinta como "rojo": fija, así "no cambió nada" se ve frío
 
@@ -87,4 +93,59 @@ def generar_informe(comparacion_objetos: dict, intensidad: float,
 
     lineas.append("Esta verificación automática no es una prueba: un defecto chico, como una mancha, "
                   "puede desaparecer sin que ningún detector lo note.")
+    return "\n\n".join(lineas)
+
+
+def porcentaje_producto_modificado(original: Image.Image, resultado: Image.Image,
+                                   binaria: np.ndarray, borde_px: int = 8) -> float:
+    """Porcentaje (0-100) de píxeles DEL PRODUCTO que cambiaron de forma visible.
+
+    Es la métrica clave de este enfoque: sin corrección de luz tiene que dar 0%,
+    porque los píxeles del producto se pegan sin tocar. Se excluye un borde fino
+    (`borde_px`, un poco más que la erosión + difuminado de segmentacion.alfa_para_composicion)
+    porque ahí la mezcla con el fondo nuevo es esperable.
+    """
+    interior = cv2.erode(binaria.astype(np.uint8), np.ones((2 * borde_px + 1,) * 2, np.uint8)).astype(bool)
+    if not interior.any():
+        return 0.0
+    dif = _diferencia(original, resultado)
+    return float((dif[interior] > DIFERENCIA_VISIBLE).mean() * 100)
+
+
+def generar_informe_escena(fondo: str, usa_ia: bool, producto_modificado: float,
+                           iluminacion_corregida: bool = False,
+                           comparacion_objetos: dict | None = None) -> str:
+    """Informe en lenguaje simple (Markdown) para el enfoque "producto real + fondo nuevo"."""
+    if usa_ia:
+        lineas = [f"**Fondo:** {fondo}, generado por una IA. Es lo único inventado de la foto."]
+    else:
+        lineas = [f"**Fondo:** {fondo}. No usa IA: es un color liso, para que compares si el fondo "
+                  "generado realmente aporta algo."]
+
+    if producto_modificado < 0.05:
+        lineas.append("🟢 **Tu producto:** 0% de sus píxeles se modificó. Logos, botones, estampados y "
+                      "detalles son los de tu foto real.")
+    elif iluminacion_corregida:
+        lineas.append(f"🟡 **Tu producto:** {producto_modificado:.1f}% de sus píxeles cambió, por la corrección "
+                      "de iluminación (método clásico, no IA). Ajusta brillo y contraste, no inventa detalles.")
+    else:
+        lineas.append(f"🔴 **Tu producto:** {producto_modificado:.1f}% de sus píxeles cambió y no debería. "
+                      "Revisá el resultado.")
+
+    if iluminacion_corregida:
+        lineas.append("**Iluminación:** se corrigió con un método clásico: reparte mejor la luz que ya tenía "
+                      "tu foto, pero no recupera lo que la cámara no registró y puede resaltar el ruido.")
+
+    if comparacion_objetos:
+        aparecieron = comparacion_objetos.get("aparecieron", [])
+        desaparecieron = comparacion_objetos.get("desaparecieron", [])
+        if aparecieron:
+            lineas.append(f"🔴 **Aparecieron objetos que no estaban:** {', '.join(aparecieron)}. "
+                          "El fondo generado puede haberlos inventado.")
+        if desaparecieron:
+            lineas.append(f"🔴 **Desaparecieron objetos que sí estaban:** {', '.join(desaparecieron)}. "
+                          "Verificá que la máscara no haya recortado parte del producto.")
+
+    lineas.append("**Límites:** la máscara puede fallar en bordes finos (flecos, tiras, tul) y el producto "
+                  "no proyecta sombra sobre el fondo nuevo. Mirá el borde antes de publicar.")
     return "\n\n".join(lineas)
