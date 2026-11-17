@@ -39,7 +39,10 @@ def procesar(imagen, fondo, corregir_luz=True, progreso=gr.Progress()):
         raise gr.Error("Primero subí una foto de tu producto.")
     try:
         progreso(0.1, desc="Preparando la foto...")
-        original = imagenes.preparar(imagen)
+        # El producto se trabaja a más resolución; la IA genera el fondo en tamaño chico
+        # (un fondo desenfocado no pierde nada) y se agranda al componer.
+        original = imagenes.preparar(imagen, imagenes.LADO_PRODUCTO)
+        chica = imagenes.achicar(original)
 
         progreso(0.2, desc="Separando el producto del fondo...")
         binaria = segmentacion.limpiar_mascara(segmentacion.obtener_mascara(original))
@@ -51,14 +54,14 @@ def procesar(imagen, fondo, corregir_luz=True, progreso=gr.Progress()):
         usa_ia = fondo != escena.FONDO_SIN_IA
         if usa_ia:
             progreso(0.4, desc="Generando el fondo nuevo con IA...")
-            fondo_img = escena.generar_fondo(original, segmentacion.mascara_para_inpainting(binaria), fondo)
+            fondo_img = escena.generar_fondo(chica, segmentacion.mascara_para_inpainting(binaria), fondo)
         else:
             fondo_img = escena.fondo_liso(original.size)
         resultado = escena.componer(producto, fondo_img, alfa)
 
         progreso(0.8, desc="Comparando los objetos de la foto antes y después...")
         comparacion = analysis.comparar_objetos(
-            analysis.detectar_objetos(original), analysis.detectar_objetos(resultado)
+            analysis.detectar_objetos(chica), analysis.detectar_objetos(imagenes.achicar(resultado))
         )
 
         progreso(0.9, desc="Armando el informe...")

@@ -21,6 +21,8 @@ AREA_MINIMA = 0.02      # una isla de menos del 2% del producto se descarta (rui
 EROSION_PX = 2          # se achica el borde del producto para no arrastrar fondo viejo (halo)
 DIFUMINADO_PX = 2       # suaviza el borde al pegar, para que no se vea recortado con tijera
 EXPANSION_PX = 6        # cuánto invade el inpainting dentro del borde del producto
+HUECO_MAXIMO = 0.005    # solo se tapan huecos de menos del 0.5% del producto (botones, ojales)
+ESCALA_REFERENCIA = 768 # los píxeles de arriba están pensados para una foto de 768 px de lado
 
 _modelo = None  # caché: el modelo se carga una sola vez
 
@@ -53,7 +55,8 @@ def obtener_mascara(imagen: Image.Image) -> Image.Image:
     rgb = imagen.convert("RGB")
     chica = np.asarray(rgb.resize((RESOLUCION, RESOLUCION), Image.BILINEAR), dtype=np.float32) / 255.0
     chica = (chica - np.array(_MEDIA, dtype=np.float32)) / np.array(_DESVIO, dtype=np.float32)
-    entrada = torch.from_numpy(chica.transpose(2, 0, 1)).unsqueeze(0).to(_dispositivo())
+    entrada = torch.from_numpy(chica.transpose(2, 0, 1)).unsqueeze(0)
+    entrada = entrada.to(_dispositivo()).to(next(modelo.parameters()).dtype)  # mismo tipo que los pesos
 
     with torch.no_grad():
         prediccion = modelo(entrada)[-1].sigmoid().cpu()[0, 0].numpy()  # BiRefNet devuelve varias salidas; la última es la fina
@@ -83,13 +86,28 @@ def quitar_islas(binaria: np.ndarray, area_minima: float = AREA_MINIMA) -> np.nd
     return sin_islas
 
 
-def rellenar_huecos(binaria: np.ndarray) -> np.ndarray:
-    """Tapa agujeros chicos adentro del producto (un botón que la máscara dejó como fondo)."""
-    cerrada = cv2.morphologyEx(binaria.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
-    contornos, _ = cv2.findContours(cerrada, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    lleno = np.zeros(binaria.shape, np.uint8)
-    cv2.drawContours(lleno, contornos, -1, 1, thickness=cv2.FILLED)
-    return lleno.astype(bool)
+def rellenar_huecos(binaria: np.ndarray, area_maxima: float = HUECO_MAXIMO) -> np.ndarray:
+    """Tapa agujeros CHICOS adentro del producto (un botón que la máscara dejó como fondo).
+
+    Un hueco grande no se toca: el espacio entre dos correas o dentro de un lazo es
+    fondo de verdad, y taparlo dejaría el sillón pegado al producto.
+    """
+    fondo = (~binaria).astype(np.uint8)
+    cantidad, etiquetas, estadisticas, _ = cv2.connectedComponentsWithStats(fondo, connectivity=4)
+    limite = binaria.sum() * area_maxima
+    alto, ancho = binaria.shape
+    lleno = binaria.copy()
+    for i in range(1, cantidad):
+        x, y, w, h, area = estadisticas[i]
+        toca_borde = x == 0 or y == 0 or x + w == ancho or y + h == alto
+        if not toca_borde and area <= limite:
+            lleno[etiquetas == i] = True
+    return lleno
+
+
+def _escala(binaria: np.ndarray) -> float:
+    """Los píxeles de borde crecen con la foto (en una de 1600 px un borde de 2 px no se ve). Nunca menos de 1."""
+    return max(1.0, max(binaria.shape) / ESCALA_REFERENCIA)
 
 
 def _kernel(radio: int) -> np.ndarray:
@@ -108,6 +126,8 @@ def alfa_para_composicion(binaria: np.ndarray, erosion_px: int = EROSION_PX,
     Se erosiona un poco el borde (para no arrastrar píxeles del fondo viejo) y se
     difumina (para que la transición no se vea recortada).
     """
+    escala = _escala(binaria)
+    erosion_px, difuminado_px = round(erosion_px * escala), difuminado_px * escala
     mascara = binaria.astype(np.uint8) * 255
     if erosion_px > 0:
         mascara = cv2.erode(mascara, _kernel(erosion_px))
@@ -123,6 +143,7 @@ def mascara_para_inpainting(binaria: np.ndarray, expansion_px: int = EXPANSION_P
     así el fondo nuevo llega hasta abajo del borde y no queda un anillo del fondo viejo.
     Los píxeles de ese borde se pisan después con los originales.
     """
+    expansion_px = round(expansion_px * _escala(binaria))
     producto = binaria.astype(np.uint8) * 255
     if expansion_px > 0:
         producto = cv2.erode(producto, _kernel(expansion_px))
