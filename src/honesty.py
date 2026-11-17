@@ -50,13 +50,18 @@ def _nivel(intensidad: float) -> str:
 
 
 def generar_informe(comparacion_objetos: dict, intensidad: float,
-                    porcentaje: float | None = None) -> str:
+                    porcentaje: float | None = None,
+                    iluminacion_corregida: bool = False) -> str:
     """Informe en lenguaje simple (Markdown) para la persona usuaria.
 
     `comparacion_objetos` viene de analysis.comparar_objetos, con las claves
     'aparecieron', 'desaparecieron' y 'sin_cambios' (listas de nombres de objetos).
     """
     lineas = [f"**Intensidad usada:** {intensidad:.2f} → {_nivel(intensidad)}."]
+
+    if iluminacion_corregida:
+        lineas.append("**Iluminación:** se corrigió con un método clásico (no es IA): reparte mejor la luz "
+                      "que ya tenía tu foto, pero no recupera lo que la cámara no registró y puede resaltar el ruido.")
 
     if porcentaje is not None:
         lineas.append(f"**Cuánto cambió la foto:** {porcentaje:.1f}% de la imagen se modificó de forma visible. "

@@ -13,3 +13,6 @@ Sirve para completar la sección "Uso de Agentes de IA" del README.
 | 2026-11-16 | Prompt neutro ("best quality, sharp, natural lighting") sin describir el producto | Propuso Claude | Para no inducir al modelo a inventar contenido |
 | 2026-11-16 | Filtro de seguridad de SD desactivado | Propuso Claude; Álvaro debe confirmar | Evita falsos positivos (imagen negra) en fotos de ropa; el uso es solo restaurar fotos propias |
 | 2026-11-16 | `restaurar` devuelve el mismo tamaño que la entrada | Propuso Claude | Necesario para el mapa de diferencias píxel a píxel |
+| 2026-11-17 | Prueba en Kaggle: con strength 0.3 el modelo cambia muy poco y deja la mala luz y el fondo | Álvaro observó; Claude diagnosticó | ControlNet tile ancla la imagen al original: limpia ruido/desenfoque, no corrige luz ni fondo |
+| 2026-11-17 | Corrección de iluminación clásica previa (gamma automático + CLAHE sobre L*a*b*) con casilla en la app | Propuso Claude; Álvaro debe validar con sus fotos | No inventa contenido; usa conceptos de la materia (histogramas, espacios de color) |
+| 2026-11-17 | Fondo mal tomado queda fuera de alcance; se documenta como limitación | Propuso Claude | Cambiar el fondo exige segmentar y generar contenido nuevo: choca con la honestidad hacia el comprador |

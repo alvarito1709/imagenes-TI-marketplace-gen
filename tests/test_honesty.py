@@ -49,3 +49,8 @@ def test_informe_advierte_con_intensidad_alta():
 
 def test_aviso_menciona_ia():
     assert "IA" in AVISO_IA
+
+
+def test_informe_menciona_la_correccion_de_luz_solo_si_se_aplico():
+    assert "Iluminación" in generar_informe({}, 0.3, None, True)
+    assert "Iluminación" not in generar_informe({}, 0.3, None, False)

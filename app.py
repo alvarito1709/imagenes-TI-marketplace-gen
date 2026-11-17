@@ -27,15 +27,18 @@ def precargar_modelos() -> None:
     registro.info("Modelos listos en %.0f s", time.time() - t0)
 
 
-def procesar(imagen, intensidad, progreso=gr.Progress()):
+def procesar(imagen, intensidad, corregir_luz=True, progreso=gr.Progress()):
     if imagen is None:
         raise gr.Error("Primero subí una foto de tu producto.")
     try:
         progreso(0.1, desc="Preparando la foto...")
         original = imagenes.preparar(imagen)
 
+        # Corrección clásica de luz ANTES de la difusión: es lo que el modelo no resuelve solo.
+        entrada_difusion = clasico.corregir_iluminacion(original) if corregir_luz else original
+
         progreso(0.3, desc="Reconstruyendo detalles con un modelo de difusión...")
-        resultado = diffusion.restaurar(original, intensidad)
+        resultado = diffusion.restaurar(entrada_difusion, intensidad)
 
         progreso(0.7, desc="Comparando los objetos de la foto antes y después...")
         objetos_antes = analysis.detectar_objetos(original)
@@ -44,9 +47,9 @@ def procesar(imagen, intensidad, progreso=gr.Progress()):
 
         progreso(0.9, desc="Armando el informe...")
         mapa = honesty.mapa_de_diferencias(original, resultado)
-        base_clasica = clasico.filtro_bilateral(original)
+        base_clasica = clasico.filtro_bilateral(entrada_difusion)  # misma luz que recibió el modelo
         informe = honesty.generar_informe(
-            comparacion, intensidad, honesty.porcentaje_cambiado(original, resultado)
+            comparacion, intensidad, honesty.porcentaje_cambiado(original, resultado), corregir_luz
         )
     except Exception as error:
         # El detalle técnico va a la consola; la persona ve un mensaje simple.
@@ -83,15 +86,20 @@ def construir_pantalla() -> gr.Blocks:
             label="Cuánto puede cambiar el modelo mi foto",
             info="Más bajo = más fiel a tu foto. Más alto = el modelo inventa más.",
         )
+        corregir_luz = gr.Checkbox(
+            value=True,
+            label="Corregir la iluminación primero (método clásico)",
+            info="Ayuda con fotos oscuras. La IA de este sistema limpia ruido y desenfoque, no arregla la luz ni el fondo.",
+        )
         boton = gr.Button("Mejorar foto", variant="primary")
         if HAY_SLIDER:
             comparador = gr.ImageSlider(label="Antes / Después")
         else:
             comparador = gr.Gallery(label="Antes / Después", columns=2)
         mapa = gr.Image(label="Dónde cambió más (rojo = cambió mucho)")
-        base = gr.Image(label="Mejora clásica (sin IA), para comparar")
+        base = gr.Image(label="Solo filtro clásico (sin IA), para comparar")
         informe = gr.Markdown()
-        boton.click(procesar, [entrada, intensidad], [comparador, mapa, base, informe])
+        boton.click(procesar, [entrada, intensidad, corregir_luz], [comparador, mapa, base, informe])
     return pantalla
 
 
