@@ -2,14 +2,15 @@
 
 ## Proyecto
 Trabajo Integrador N°2 — Procesamiento Digital de Imágenes (IFTS 24, 2026).
-App que limpia ruido y desenfoque de fotos de productos para una vendedora de
-marketplace (persona: Camila), **sin ocultar defectos reales** y avisando qué
-fue reconstruido por la IA. Autor: Álvaro Ortiz. Responsabilidad del código: de él.
+App que mejora el fondo y la iluminación de fotos de productos para una vendedora de
+marketplace (persona: Camila), **sin alterar el producto ni ocultar defectos reales**
+y avisando qué fue generado por la IA (el fondo). Autor: Álvaro Ortiz. Responsabilidad del código: de él.
 
 ## Stack
 - Python 3.12, gestor `uv`. Interfaz: Gradio.
-- Difusión: SD 1.5 + ControlNet tile (`diffusers`). Análisis: RT-DETR (`transformers`).
-- Imágenes: Pillow, NumPy, OpenCV. Se ejecuta en Google Colab LA PC DE DESARROLLO NO TIENE GPU.
+- Segmentación: BiRefNet (`transformers`, MIT). Fondo: SD 1.5 inpainting (`diffusers`). Análisis: RT-DETR (`transformers`).
+- `src/diffusion.py` (SD 1.5 + ControlNet tile) es el enfoque anterior, plan B hasta el 18/11 a las 10:00.
+- Imágenes: Pillow, NumPy, OpenCV. Se ejecuta en Google Colab o Kaggle (la PC de desarrollo no tiene GPU).
 
 ## Comandos
 - Instalar: `uv sync`
@@ -17,6 +18,7 @@ fue reconstruido por la IA. Autor: Álvaro Ortiz. Responsabilidad del código: d
 - App: `uv run app.py`
 
 ## Reglas
+- **Regla central: los píxeles del producto nunca se regeneran.** La IA solo toca el fondo; el producto original se pega encima al final.
 - Un paso chico por vez; mostrar el plan antes de escribir código.
 - Commits chicos y descriptivos (un cambio, un commit). Ramas: `feature/*` → `develop` → `main`.
 - Modelos se cargan UNA sola vez, nunca dentro de la función que corre en cada clic.
