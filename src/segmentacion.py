@@ -38,7 +38,9 @@ def cargar_modelo():
     from transformers import AutoModelForImageSegmentation
 
     modelo = AutoModelForImageSegmentation.from_pretrained(MODELO_SEGMENTACION, trust_remote_code=True)
-    modelo.to(_dispositivo()).eval()
+    # Las versiones nuevas de transformers cargan los pesos en el tipo guardado (float16),
+    # y la entrada va en float32: se fuerza float32 para que coincidan.
+    modelo.float().to(_dispositivo()).eval()
     _modelo = modelo
     return _modelo
 
