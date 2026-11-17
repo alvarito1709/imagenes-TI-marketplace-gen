@@ -33,7 +33,7 @@ def main() -> None:
     alfa = segmentacion.alfa_para_composicion(binaria)
 
     t0 = time.time()
-    fondo_ia = escena.generar_fondo(original, segmentacion.mascara_para_inpainting(binaria), fondo)
+    fondo_ia = escena.generar_fondo(original.size, fondo)
     print(f"Inpainting '{fondo}': {time.time() - t0:.1f} s")
     resultado = escena.componer(original, fondo_ia, alfa)
 

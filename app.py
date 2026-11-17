@@ -39,8 +39,8 @@ def procesar(imagen, fondo, corregir_luz=True, progreso=gr.Progress()):
         raise gr.Error("Primero subí una foto de tu producto.")
     try:
         progreso(0.1, desc="Preparando la foto...")
-        # El producto se trabaja a más resolución; la IA genera el fondo en tamaño chico
-        # (un fondo desenfocado no pierde nada) y se agranda al componer.
+        # El producto se trabaja a más resolución; el fondo se genera en 512 px y se agranda
+        # al componer (un fondo liso no pierde nada).
         original = imagenes.preparar(imagen, imagenes.LADO_PRODUCTO)
         chica = imagenes.achicar(original)
 
@@ -54,7 +54,7 @@ def procesar(imagen, fondo, corregir_luz=True, progreso=gr.Progress()):
         usa_ia = fondo != escena.FONDO_SIN_IA
         if usa_ia:
             progreso(0.4, desc="Generando el fondo nuevo con IA...")
-            fondo_img = escena.generar_fondo(chica, segmentacion.mascara_para_inpainting(binaria), fondo)
+            fondo_img = escena.generar_fondo(original.size, fondo)
         else:
             fondo_img = escena.fondo_liso(original.size)
         resultado = escena.componer(producto, fondo_img, alfa)

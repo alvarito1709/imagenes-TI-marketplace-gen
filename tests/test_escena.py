@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from src.escena import FONDO_SIN_IA, FONDOS, OPCIONES_FONDO, componer, fondo_liso, generar_fondo
+from src.escena import FONDO_SIN_IA, FONDOS, OPCIONES_FONDO, _BASE_NEGATIVO, _cubrir, componer, fondo_liso, generar_fondo
 
 
 def _aleatoria(tam=(32, 32), semilla=0):
@@ -55,4 +55,19 @@ def test_opciones_de_fondo_incluyen_la_comparacion_sin_ia():
 
 def test_generar_fondo_rechaza_un_fondo_desconocido_sin_cargar_el_modelo():
     with pytest.raises(ValueError):
-        generar_fondo(_aleatoria(), Image.new("L", (32, 32)), "Playa")
+        generar_fondo((32, 32), "Playa")
+
+
+def test_cubrir_da_el_tamano_pedido_sin_deformar():
+    cuadro = Image.new("RGB", (100, 100), (255, 0, 0))
+    cuadro.paste(Image.new("RGB", (100, 50), (0, 0, 255)), (0, 50))   # mitad de arriba roja, abajo azul
+    alto = _cubrir(cuadro, (40, 120))
+    assert alto.size == (40, 120)
+    assert alto.getpixel((20, 5)) == (255, 0, 0) and alto.getpixel((20, 115)) == (0, 0, 255)
+
+
+def test_los_prompts_no_invocan_soportes_ni_personas_y_lo_prohibido_va_en_el_negativo():
+    for texto in FONDOS.values():
+        assert not any(p in texto.lower() for p in ("studio", "backdrop", "no objects", "person"))
+    for palabra in ("person", "tripod", "curtain", "fur"):
+        assert palabra in _BASE_NEGATIVO

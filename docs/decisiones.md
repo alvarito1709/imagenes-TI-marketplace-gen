@@ -21,6 +21,7 @@ Sirve para completar la sección "Uso de Agentes de IA" del README.
 | 2026-11-17 | Segmentación con BiRefNet (licencia MIT) y no con RMBG-2.0 | Propuso Claude (verificado en las fichas de los modelos); aprobó Álvaro | RMBG-2.0 es de uso no comercial y exige aceptar condiciones para acceder |
 | 2026-11-17 | Fondos disponibles: blanco de estudio, madera clara, gris suave (generados con IA) y blanco liso sin IA como comparación | Propuso Claude; aprobó Álvaro | El blanco liso sin IA sirve de línea base clásica |
 | 2026-11-17 | `diffusion.py` (enfoque 1) se conserva como **plan B** hasta el miércoles 18/11 a las 10:00 | Álvaro | A esa hora se decide seguir con el enfoque nuevo o volver al anterior |
+| 2026-11-17 | El fondo se genera **sin que el modelo vea el producto**, en un cuadrado de 512 px que se ajusta al formato de la foto; el producto se pega a hasta 1600 px | Propuso Claude | Primera prueba en Kaggle: el inpainting con el bolso a la vista inventó una persona que lo llevaba puesto, un soporte de estudio y pelo detrás del bolso. Causas: SD1.5 se entrenó con cuadrados de 512 px (en formatos altos duplica objetos), los prompts decían «studio backdrop» y el modelo «completaba» lo que creía que faltaba del producto. El producto salió intacto en todas las pruebas: lo inventado fue siempre el fondo |
 
 ## Cambio de enfoque (17/11/2026): de retocar el producto a mejorar la escena
 

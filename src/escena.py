@@ -1,7 +1,8 @@
 """Escena nueva: la IA genera SOLO el fondo y el producto se pega sin tocarlo.
 
 Pasos:
-  1. Inpainting (Stable Diffusion) dibuja un fondo nuevo en la zona que NO es producto.
+  1. Stable Diffusion dibuja un fondo vacío, SIN ver el producto (si lo ve, "completa" lo que
+     cree que falta: una persona que lleva el bolso, un soporte de estudio, pelo...).
   2. `componer` pega encima los píxeles originales del producto.
 
 Resultado: logos, botones, estampados y costuras son los de la foto real.
@@ -15,18 +16,21 @@ MODELO_INPAINTING = "stable-diffusion-v1-5/stable-diffusion-inpainting"  # Creat
 PASOS = 30
 SEMILLA = 0
 GUIA = 7.5  # cuánto obedece el modelo al texto
+LADO_GENERADO = 512  # SD1.5 se entrenó con cuadrados de 512 px
 
-_BASE_NEGATIVO = ("product, clothing, bag, shoes, jewelry, person, hands, text, logo, "
-                  "watermark, shadow of an object, clutter, blur, lowres")
+# SD1.5 no entiende negaciones dentro del prompt ("no objects" las atrae): lo que no
+# queremos va en el prompt negativo, y el positivo solo describe una superficie.
+_BASE_NEGATIVO = ("person, people, human, face, body, hands, clothing, bag, shoes, jewelry, furniture, "
+                  "objects, stand, tripod, curtain, backdrop, frame, border, text, logo, watermark, "
+                  "animal, fur, shadow, pattern, clutter, blur, lowres")
 
 # Los fondos de IA se definen por texto. "Blanco liso" no usa IA: ver `fondo_liso`.
+# No usar palabras como "studio" o "backdrop": el modelo las asocia con soportes y telones.
 FONDOS = {
-    "Blanco de estudio": "empty seamless white photo studio backdrop, soft diffused light, "
-                         "clean product photography background, no objects",
-    "Madera clara": "empty light oak wooden table surface, soft natural window light, "
-                    "clean product photography background, no objects",
-    "Gris suave": "empty soft light gray seamless paper backdrop, even soft lighting, "
-                  "clean product photography background, no objects",
+    "Blanco de estudio": "plain white wall, smooth matte surface, soft even lighting, minimal, high key",
+    "Madera clara": "close-up top view of a light oak wood table surface, natural grain, "
+                    "soft even lighting, flat",
+    "Gris suave": "plain light gray wall, smooth matte surface, soft even lighting, minimal",
 }
 FONDO_SIN_IA = "Blanco liso (sin IA)"
 OPCIONES_FONDO = [*FONDOS, FONDO_SIN_IA]
@@ -62,35 +66,41 @@ def cargar_inpainting():
     return _pipeline
 
 
-def _multiplo_de_8(valor: int) -> int:
-    return max(8, valor // 8 * 8)
+def _cubrir(imagen: Image.Image, tamano: tuple[int, int]) -> Image.Image:
+    """Escala `imagen` hasta cubrir `tamano` y recorta el centro, sin deformar."""
+    ancho, alto = tamano
+    escala = max(ancho / imagen.width, alto / imagen.height)
+    nueva = imagen.resize((max(ancho, round(imagen.width * escala)), max(alto, round(imagen.height * escala))),
+                          Image.LANCZOS)
+    izq, arriba = (nueva.width - ancho) // 2, (nueva.height - alto) // 2
+    return nueva.crop((izq, arriba, izq + ancho, arriba + alto))
 
 
-def generar_fondo(imagen: Image.Image, mascara_fondo: Image.Image, fondo: str) -> Image.Image:
-    """Devuelve la foto con la zona blanca de `mascara_fondo` regenerada según `fondo`.
+def generar_fondo(tamano: tuple[int, int], fondo: str) -> Image.Image:
+    """Genera un fondo vacío (solo la superficie descripta) del `tamano` pedido.
 
-    El tamaño de salida es el de la foto de entrada. Solo hay que usar el fondo de este
-    resultado: el producto que el modelo "redibuja" se descarta al componer.
+    El modelo NO recibe la foto del producto: se pide una imagen entera nueva en un cuadrado
+    (el formato con el que se entrenó SD1.5; en formatos altos duplica objetos) y después se
+    ajusta al formato de la foto. Se usa el pipeline de inpainting con la máscara completa,
+    así no hay que descargar otro modelo.
     """
     if fondo not in FONDOS:
         raise ValueError(f"Fondo desconocido: {fondo!r}. Opciones con IA: {list(FONDOS)}")
     import torch
 
     pipe = cargar_inpainting()
-    ancho, alto = imagen.size
-    medidas = (_multiplo_de_8(ancho), _multiplo_de_8(alto))
     generador = torch.Generator(device=pipe.device).manual_seed(SEMILLA)
     salida = pipe(
         prompt=FONDOS[fondo],
         negative_prompt=_BASE_NEGATIVO,
-        image=imagen.convert("RGB").resize(medidas, Image.LANCZOS),
-        mask_image=mascara_fondo.convert("L").resize(medidas, Image.NEAREST),
-        width=medidas[0], height=medidas[1],
+        image=Image.new("RGB", (LADO_GENERADO, LADO_GENERADO), (128, 128, 128)),
+        mask_image=Image.new("L", (LADO_GENERADO, LADO_GENERADO), 255),
+        width=LADO_GENERADO, height=LADO_GENERADO,
         num_inference_steps=PASOS,
         guidance_scale=GUIA,
         generator=generador,
     ).images[0]
-    return salida.resize((ancho, alto), Image.LANCZOS)
+    return _cubrir(salida, tamano)
 
 
 def fondo_liso(tamano: tuple[int, int], color: tuple[int, int, int] = (255, 255, 255)) -> Image.Image:

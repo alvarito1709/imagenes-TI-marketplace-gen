@@ -18,8 +18,8 @@ _DESVIO = (0.229, 0.224, 0.225)
 
 UMBRAL = 128            # sobre 255: desde acá un píxel cuenta como producto
 AREA_MINIMA = 0.02      # una isla de menos del 2% del producto se descarta (ruido de la máscara)
-EROSION_PX = 2          # se achica el borde del producto para no arrastrar fondo viejo (halo)
-DIFUMINADO_PX = 2       # suaviza el borde al pegar, para que no se vea recortado con tijera
+EROSION_PX = 1          # se achica el borde del producto para no arrastrar fondo viejo (halo)
+DIFUMINADO_PX = 1       # suaviza el borde al pegar, para que no se vea recortado con tijera
 EXPANSION_PX = 6        # cuánto invade el inpainting dentro del borde del producto
 HUECO_MAXIMO = 0.005    # solo se tapan huecos de menos del 0.5% del producto (botones, ojales)
 ESCALA_REFERENCIA = 768 # los píxeles de arriba están pensados para una foto de 768 px de lado
