@@ -59,7 +59,7 @@ def test_informe_menciona_la_correccion_de_luz_solo_si_se_aplico():
 # --- enfoque "producto real + fondo nuevo" ---
 import numpy as np  # noqa: E402
 
-from src.honesty import AVISO_ESCENA, generar_informe_escena, porcentaje_producto_modificado  # noqa: E402
+from src.honesty import AVISO_ESCENA, generar_informe_escena, generar_informe_fondo, porcentaje_producto_modificado  # noqa: E402
 
 
 def _producto(tam=40):
@@ -105,3 +105,16 @@ def test_informe_escena_alerta_si_cambio_sin_corregir_luz():
 
 def test_aviso_escena_aclara_que_solo_el_fondo_es_ia():
     assert "fondo" in AVISO_ESCENA
+
+
+def test_informe_fondo_distingue_lo_que_cambio_en_este_paso_de_lo_que_cambio_antes():
+    texto = generar_informe_fondo("Madera clara", True, 0.0, 4.0)
+    assert "no se tocó" in texto and "4.0%" in texto and "paso 1" in texto and "sin ver tu producto" in texto
+
+
+def test_informe_fondo_alerta_si_el_producto_cambio_en_este_paso():
+    assert "🔴" in generar_informe_fondo("Gris suave", True, 3.0, 3.0)
+
+
+def test_informe_fondo_sin_ia_lo_aclara():
+    assert "No usa IA" in generar_informe_fondo("Blanco liso (sin IA)", False, 0.0, 0.0)

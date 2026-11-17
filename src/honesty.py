@@ -149,3 +149,33 @@ def generar_informe_escena(fondo: str, usa_ia: bool, producto_modificado: float,
     lineas.append("**Límites:** la máscara puede fallar en bordes finos (flecos, tiras, tul) y el producto "
                   "no proyecta sombra sobre el fondo nuevo. Mirá el borde antes de publicar.")
     return "\n\n".join(lineas)
+
+
+def generar_informe_fondo(fondo: str, usa_ia: bool, cambio_en_este_paso: float, cambio_total: float) -> str:
+    """Informe (Markdown) del paso opcional "cambiar el fondo" que se aplica sobre la foto ya restaurada.
+
+    `cambio_en_este_paso`: % de píxeles del producto que cambiaron al pegarlo sobre el fondo nuevo (debe ser 0).
+    `cambio_total`: % de píxeles del producto que cambiaron respecto de la foto ORIGINAL de la persona
+    (incluye lo que hizo la restauración del paso 1).
+    """
+    if usa_ia:
+        lineas = [f"**Fondo:** {fondo}, generado por una IA sin ver tu producto. Es lo único inventado en este paso."]
+    else:
+        lineas = [f"**Fondo:** {fondo}. No usa IA: es un color liso."]
+
+    if cambio_en_este_paso < 0.05:
+        lineas.append("🟢 **En este paso el producto no se tocó:** sus píxeles son los de la foto del paso 1.")
+    else:
+        lineas.append(f"🔴 **En este paso cambió {cambio_en_este_paso:.1f}% del producto y no debería.** "
+                      "Revisá el resultado.")
+
+    if cambio_total < 0.05:
+        lineas.append("🟢 Respecto de tu foto original, el producto tampoco cambió.")
+    else:
+        lineas.append(f"🟡 Respecto de tu foto original, {cambio_total:.1f}% de los píxeles del producto cambió "
+                      "por el paso 1 (restauración y luz). Mirá el mapa del paso 1.")
+
+    lineas.append("**Límites:** el recorte puede incluir partes que no son del producto (una mano, un trozo de "
+                  "sillón) o comerse bordes finos como flecos y tiras, y el producto no proyecta sombra sobre el "
+                  "fondo nuevo. Mirá el borde antes de publicar.")
+    return "\n\n".join(lineas)
