@@ -1,4 +1,4 @@
-"""Escena nueva: la IA genera SOLO el fondo y el producto se pega sin tocarlo.
+"""Escena nueva (paso 2 opcional de la app): la IA genera SOLO el fondo y el producto se pega sin tocarlo.
 
 Pasos:
   1. Stable Diffusion dibuja un fondo vacío, SIN ver el producto (si lo ve, "completa" lo que

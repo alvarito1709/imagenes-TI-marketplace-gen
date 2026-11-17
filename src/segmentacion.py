@@ -1,4 +1,4 @@
-"""Segmentación del producto: separa "lo que se vende" del fondo.
+"""Segmentación del producto (paso 2 opcional de la app: cambiar el fondo): separa "lo que se vende" del fondo.
 
 Un modelo (BiRefNet) dibuja una máscara: blanco = producto, negro = fondo.
 Con esa máscara la IA solo toca el fondo y los píxeles del producto se pegan
