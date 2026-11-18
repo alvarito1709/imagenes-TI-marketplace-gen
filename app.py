@@ -3,8 +3,10 @@
 La lógica vive en src/; acá solo se arma la pantalla y se conectan los pasos.
 Uso:  uv run app.py      (en Colab: ver colab/ejecutar_en_colab.ipynb)
 """
+import inspect
 import logging
 import time
+from pathlib import Path
 
 import gradio as gr
 from PIL import Image
@@ -112,35 +114,99 @@ def _comparador(original, resultado):
 # las dos fotos en una galería para no romper la app.
 HAY_SLIDER = hasattr(gr, "ImageSlider")
 
+ALTO_IMAGEN = 460   # alto fijo de todas las imágenes: si no, el cuadro crece con cada foto que se sube
+CARPETA_EJEMPLOS = Path(__file__).resolve().parent / "assets" / "ejemplos"
+
+TEMA = gr.themes.Soft(primary_hue="teal", neutral_hue="slate").set(
+    button_primary_background_fill="*primary_600",
+    button_primary_background_fill_hover="*primary_700",
+    button_primary_background_fill_dark="*primary_500",
+    button_primary_background_fill_hover_dark="*primary_400",
+    button_primary_text_color="white",
+    block_radius="14px",
+)
+
+# Usa las variables de color de Gradio: los mismos estilos sirven en modo claro y oscuro.
+CSS = """
+.gradio-container { max-width: 1180px !important; margin: 0 auto !important; }
+#encabezado h1 { margin-bottom: 0.25rem; }
+.pasos { color: var(--body-text-color-subdued); font-size: 1.02rem; }
+.aviso { border-left: 4px solid var(--color-accent); background: var(--background-fill-secondary);
+         border-radius: 10px; padding: 0.6rem 1rem; }
+.informe { border: 1px solid var(--border-color-primary); background: var(--background-fill-secondary);
+           border-radius: 14px; padding: 0.4rem 1rem; }
+.imagen-fija img { object-fit: contain !important; }
+"""
+
+# Alterna modo claro/oscuro. Al abrir, Gradio ya sigue la preferencia del sistema.
+JS_ALTERNAR_TEMA = "() => { document.body.classList.toggle('dark'); }"
+
+
+def _estilo(funcion) -> dict:
+    """Tema y CSS, en el lugar donde esta versión de Gradio los acepta (Blocks o launch)."""
+    parametros = inspect.signature(funcion).parameters
+    return {k: v for k, v in {"theme": TEMA, "css": CSS}.items() if k in parametros}
+
+
+def _fotos_de_ejemplo() -> list[list[str]]:
+    fotos = sorted(p for p in CARPETA_EJEMPLOS.glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"})
+    return [[str(p)] for p in fotos[:8]]
+
 
 def construir_pantalla() -> gr.Blocks:
-    with gr.Blocks(title="Restaurador de fotos de productos") as pantalla:
-        gr.Markdown(
-            "# Restaurador de fotos de productos\n"
-            "Subí la foto de lo que vendés y mirá qué cambia. "
-            "**Los detalles nuevos los genera una IA: revisalos antes de publicar.**"
-        )
-        entrada = gr.Image(type="pil", label="Tu foto")
-        intensidad = gr.Slider(
-            0.0, 1.0, value=0.3, step=0.05,
-            label="Cuánto puede cambiar el modelo mi foto",
-            info="Más bajo = más fiel a tu foto. Más alto = el modelo inventa más.",
-        )
-        corregir_luz = gr.Checkbox(
-            value=True,
-            label="Corregir la iluminación primero (método clásico)",
-            info="Ayuda con fotos oscuras. La IA de este paso limpia ruido y desenfoque, no arregla la luz. El fondo se cambia en el paso 2 (opcional).",
-        )
-        boton = gr.Button("Mejorar foto", variant="primary")
-        if HAY_SLIDER:
-            comparador = gr.ImageSlider(label="Antes / Después")
-        else:
-            comparador = gr.Gallery(label="Antes / Después", columns=2)
-        mapa = gr.Image(label="Dónde cambió más (rojo = cambió mucho)")
-        base = gr.Image(label="Solo filtro clásico (sin IA), para comparar")
-        informe = gr.Markdown()
+    with gr.Blocks(title="Restaurador de fotos de productos", **_estilo(gr.Blocks.__init__)) as pantalla:
+        with gr.Row(equal_height=True):
+            gr.Markdown(
+                "# 📸 Restaurador de fotos de productos\n"
+                "Limpiá el ruido y el desenfoque de las fotos de lo que vendés, y mirá exactamente qué cambió.",
+                elem_id="encabezado",
+            )
+            boton_tema = gr.Button("🌙 / ☀️ Modo oscuro", size="sm", scale=0, min_width=170)
+        gr.Markdown("**1.** Subí tu foto  ·  **2.** Tocá *Mejorar foto*  ·  **3.** Revisá qué cambió antes de publicar",
+                    elem_classes="pasos")
+        gr.Markdown("⚠️ **Los detalles nuevos los genera una IA.** Revisalos antes de publicar: "
+                    "la foto no tiene que verse mejor que el producto real.", elem_classes="aviso")
+
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1, min_width=320):
+                entrada = gr.Image(type="pil", label="Tu foto", height=ALTO_IMAGEN,
+                                   sources=["upload", "clipboard"], elem_classes="imagen-fija")
+                boton = gr.Button("✨ Mejorar foto", variant="primary", size="lg")
+                with gr.Accordion("Ajustes (opcional)", open=False):
+                    intensidad = gr.Slider(
+                        0.0, 1.0, value=0.3, step=0.05,
+                        label="Cuánto puede cambiar el modelo mi foto",
+                        info="Más bajo = más fiel a tu foto. Más alto = el modelo inventa más.",
+                    )
+                    corregir_luz = gr.Checkbox(
+                        value=True,
+                        label="Corregir la iluminación primero (método clásico)",
+                        info="Ayuda con fotos oscuras. La IA de este paso limpia ruido y desenfoque, no arregla la luz. "
+                             "El fondo se cambia en el paso 2 (opcional).",
+                    )
+                ejemplos = _fotos_de_ejemplo()
+                if ejemplos:
+                    gr.Examples(examples=ejemplos, inputs=entrada, label="¿No tenés una foto a mano? Probá con una de ejemplo",
+                                examples_per_page=4)
+
+            with gr.Column(scale=1, min_width=320):
+                with gr.Tabs():
+                    with gr.Tab("Antes y después"):
+                        if HAY_SLIDER:
+                            comparador = gr.ImageSlider(label="Antes / Después", height=ALTO_IMAGEN)
+                        else:
+                            comparador = gr.Gallery(label="Antes / Después", columns=2, height=ALTO_IMAGEN)
+                    with gr.Tab("Dónde cambió"):
+                        mapa = gr.Image(label="Rojo = cambió mucho, azul = casi igual", height=ALTO_IMAGEN,
+                                        elem_classes="imagen-fija")
+                    with gr.Tab("Sin IA (para comparar)"):
+                        base = gr.Image(label="Solo filtro clásico, sin IA", height=ALTO_IMAGEN,
+                                        elem_classes="imagen-fija")
+                informe = gr.Markdown(elem_classes="informe")
+
         ultimo = gr.State()   # (original, resultado) del paso 1, para el paso 2
         boton.click(procesar, [entrada, intensidad, corregir_luz], [comparador, mapa, base, informe, ultimo])
+        boton_tema.click(fn=None, js=JS_ALTERNAR_TEMA)
 
         with gr.Accordion("Paso 2 (opcional): cambiar el fondo", open=False):
             gr.Markdown(
@@ -152,9 +218,11 @@ def construir_pantalla() -> gr.Blocks:
                 info="Los primeros tres los genera una IA. El último es un blanco liso, sin IA.",
             )
             boton_fondo = gr.Button("Cambiar fondo")
-            foto_fondo = gr.Image(label="Foto con el fondo nuevo")
-            mascara = gr.Image(label="Qué detectó el modelo como producto (blanco)")
-            informe_fondo = gr.Markdown()
+            with gr.Row(equal_height=False):
+                foto_fondo = gr.Image(label="Foto con el fondo nuevo", height=ALTO_IMAGEN, elem_classes="imagen-fija")
+                mascara = gr.Image(label="Qué detectó el modelo como producto (blanco)", height=ALTO_IMAGEN,
+                                   elem_classes="imagen-fija")
+            informe_fondo = gr.Markdown(elem_classes="informe")
             boton_fondo.click(cambiar_fondo, [ultimo, fondo], [foto_fondo, mascara, informe_fondo])
     return pantalla
 
@@ -165,7 +233,7 @@ demo = construir_pantalla()
 def iniciar(share: bool = False) -> None:
     """Precarga los modelos y lanza la app. En Colab: iniciar(share=True)."""
     precargar_modelos()
-    demo.launch(share=share)
+    demo.launch(share=share, **_estilo(gr.Blocks.launch))
 
 
 if __name__ == "__main__":
