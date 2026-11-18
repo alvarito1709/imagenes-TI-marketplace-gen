@@ -4,7 +4,7 @@ Parte de una foto buena, la degrada (desenfoque + ruido), la restaura de varias 
 PSNR y SSIM contra la foto buena. Necesita GPU para la difusión (Colab o Kaggle).
 
 Uso:  python scripts/evaluar_degradacion.py foto_buena.jpg [desenfoque] [ruido]
-Guarda las imágenes y resultados.md en salida_evaluacion/.
+Guarda las imágenes y resultados.md en salida_evaluacion/<foto>_d<desenfoque>_r<ruido>/.
 """
 import sys
 import time
@@ -26,8 +26,9 @@ def main() -> None:
         sys.exit(f"No encuentro la foto '{ruta}'. Subí una foto NÍTIDA a esa ruta (y hacé git push/pull si corrés en Kaggle o Colab).")
     desenfoque = float(sys.argv[2]) if len(sys.argv) > 2 else 1.5
     ruido = float(sys.argv[3]) if len(sys.argv) > 3 else 15.0
-    salida = Path("salida_evaluacion")
-    salida.mkdir(exist_ok=True)
+    # Una carpeta por corrida (foto + parámetros): así una corrida nueva no pisa los archivos de otra.
+    salida = Path("salida_evaluacion") / f"{ruta.stem}_d{desenfoque:g}_r{ruido:g}"
+    salida.mkdir(parents=True, exist_ok=True)
 
     buena = imagenes.preparar(Image.open(ruta))
     degradada = metricas.degradar(buena, desenfoque, ruido)
@@ -54,6 +55,7 @@ def main() -> None:
              "Las métricas miden parecido con la foto buena, no si algo es auténtico.\n")
     (salida / "resultados.md").write_text(texto, encoding="utf-8")
     print(texto)
+    print(f"Guardado en {salida}/")
 
 
 if __name__ == "__main__":
