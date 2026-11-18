@@ -1,0 +1,27 @@
+[project]
+name = "restaurador-fotos-marketplace"
+version = "0.1.0"
+description = "Mejora el fondo y la luz de fotos de productos con IA, sin tocar el producto."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "gradio",
+    "diffusers",
+    "transformers",
+    "accelerate",
+    "torch",
+    "pillow",
+    "numpy",
+    "opencv-python-headless",
+    # BiRefNet (segmentación) las pide al cargarse con trust_remote_code
+    "timm",
+    "einops",
+    "kornia",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
