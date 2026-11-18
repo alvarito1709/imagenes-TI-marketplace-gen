@@ -22,6 +22,8 @@ def main() -> None:
     if len(sys.argv) < 2:
         sys.exit("Uso: python scripts/evaluar_degradacion.py foto_buena.jpg [desenfoque] [ruido]")
     ruta = Path(sys.argv[1])
+    if not ruta.is_file():
+        sys.exit(f"No encuentro la foto '{ruta}'. Subí una foto NÍTIDA a esa ruta (y hacé git push/pull si corrés en Kaggle o Colab).")
     desenfoque = float(sys.argv[2]) if len(sys.argv) > 2 else 1.5
     ruido = float(sys.argv[3]) if len(sys.argv) > 3 else 15.0
     salida = Path("salida_evaluacion")
